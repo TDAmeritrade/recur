@@ -1,0 +1,31 @@
+{
+  "name": "recur",
+  "version": "1.0.0",
+  "description": "A consistent storage API for different client storage",
+  "main": "dist/es5/index.js",
+  "scripts": {
+    "test": "jest",
+    "build": "tsc -p tsconfig.es5.json && tsc -p tsconfig.es2015.json",
+    "prebuild": "npm run clean",
+    "clean": "rm -rf dist",
+    "docs": "typedoc --out docs src",
+    "predocs": "npm run clean:docs",
+    "clean:docs": "rm -rf docs",
+    "release": "standard-version"
+  },
+  "types": "dist/es5/index.d.ts",
+  "license": "BSD",
+  "devDependencies": {
+    "@types/jest": "^24.0.15",
+    "@types/lodash": "^4.14.134",
+    "jest": "^24.8.0",
+    "standard-version": "^6.0.1",
+    "ts-jest": "^24.0.2",
+    "typedoc": "^0.14.2",
+    "typescript": "^3.5.2"
+  },
+  "dependencies": {
+    "lodash": "^4.x.x",
+    "rxjs": "^6.x.x"
+  }
+}
