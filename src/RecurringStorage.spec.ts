@@ -24,7 +24,7 @@ describe('RecurringStorage', () => {
 
     it('should attach the container', async () => {
       await storage.setContainer(container);
-      expect(container.attach).toHaveBeenCalled;
+      expect(container.attach).toHaveBeenCalled();
     });
 
     it('should emit a container change event', done => {
@@ -45,7 +45,7 @@ describe('RecurringStorage', () => {
       it('should detach the previous container', async () => {
         await storage.setContainer(container);
         await storage.setContainer(new MemoryContainer());
-        expect(container.detach).toHaveBeenCalled;
+        expect(container.detach).toHaveBeenCalled();
       });
     });
   });
