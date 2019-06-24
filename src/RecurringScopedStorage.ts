@@ -7,7 +7,11 @@ import { set, unset, has, isObject, get, last } from 'lodash';
 import { Subject, Observable, ReplaySubject } from 'rxjs';
 
 import { RecurringStorage } from './RecurringStorage';
-import { StorageContainerChange, StorageChangeType } from './StorageContainer';
+import {
+  StorageContainerChange,
+  StorageChangeType,
+  createChangeEvent
+} from './StorageContainer';
 
 /**
  * Scopes down to a key in storage. All calls will interact with that
@@ -63,12 +67,14 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
       set(item, [...this.path.slice(1), key], value);
       await this.storage.setItem(this.path[0], item);
 
-      this._changes.next({
-        value,
-        type: StorageChangeType.UPDATE,
-        key: key as string,
-        snapshot: await this.getAll()
-      });
+      this._changes.next(
+        createChangeEvent<S, S[K]>(
+          StorageChangeType.UPDATE,
+          key as string,
+          value,
+          this
+        )
+      );
     }
   }
 
@@ -82,12 +88,14 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
 
       await this.storage.setItem(this.path[0], item);
 
-      this._changes.next({
-        value: undefined as any,
-        type: StorageChangeType.DELETE,
-        key: key as string,
-        snapshot: await this.getAll()
-      });
+      this._changes.next(
+        createChangeEvent(
+          StorageChangeType.DELETE,
+          key as string,
+          undefined!,
+          this
+        )
+      );
     }
   }
 
@@ -105,12 +113,9 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
       await this.storage.setItem(this.path[0], this.initializer());
     }
 
-    this._changes.next({
-      value: undefined as any,
-      type: StorageChangeType.CLEARED,
-      key: '',
-      snapshot: await this.getAll()
-    });
+    this._changes.next(
+      createChangeEvent(StorageChangeType.CLEARED, '', undefined!, this)
+    );
   }
 
   async getAll(): Promise<S> {
@@ -174,7 +179,9 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
       .then(() => this.resolveInitial());
 
     this.initialized.then(() =>
-      this.changes.subscribe(change => this._snapshot.next(change.snapshot))
+      this.changes.subscribe(change =>
+        change.snapshot.then(snapshot => this._snapshot.next(snapshot))
+      )
     );
 
     return this;

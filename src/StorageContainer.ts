@@ -1,3 +1,5 @@
+import { RecurringScopedStorage } from './RecurringScopedStorage';
+
 /*
  * Copyright 2019 TD Ameritrade. Released under the terms of the 3-Clause BSD license.  # noqa: E501
  * recur is a trademark of TD Ameritrade IP Company, Inc. All rights reserved.
@@ -10,6 +12,31 @@ export enum StorageChangeType {
   UPDATE = 'UPDATE',
   CLEARED = 'CLEARED',
   CONTAINER_CHANGE = 'CONTAINER_CHANGE'
+}
+
+export function createChangeEvent<S = any, V = any>(
+  type: StorageChangeType,
+  key: string,
+  value: V,
+  container: StorageContainer | RecurringScopedStorage<any>
+): StorageContainerChange<S, V> {
+  return {
+    type,
+    key,
+    value,
+    // Create a getter so the snapshot is lazy.
+    get snapshot() {
+      const promise = container.getAll() as Promise<S>;
+
+      Object.defineProperty(this, 'snapshot', {
+        configurable: true,
+        writable: false,
+        value: promise
+      });
+
+      return promise;
+    }
+  };
 }
 
 export interface StorageContainerChange<S = any, V = any> {
@@ -28,7 +55,7 @@ export interface StorageContainerChange<S = any, V = any> {
   /**
    * The current state of storage.
    */
-  snapshot: S;
+  snapshot: Promise<S>;
 }
 
 export type OnChangeHandler = (

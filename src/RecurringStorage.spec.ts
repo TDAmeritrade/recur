@@ -28,13 +28,13 @@ describe('RecurringStorage', () => {
     });
 
     it('should emit a container change event', done => {
-      storage.changes.subscribe(event => {
-        expect(event).toEqual({
-          type: StorageChangeType.CONTAINER_CHANGE,
-          key: '',
-          value: undefined,
-          snapshot: {}
-        });
+      storage.changes.subscribe(async event => {
+        const snapshot = await event.snapshot;
+
+        expect(event.type).toBe(StorageChangeType.CONTAINER_CHANGE);
+        expect(event.key).toBe('');
+        expect(event.value).toBe(undefined);
+        expect(snapshot).toEqual({});
 
         done();
       });
@@ -56,15 +56,13 @@ describe('RecurringStorage', () => {
     });
 
     it('should emit an event', done => {
-      storage.changes.subscribe(event => {
-        expect(event).toEqual({
-          type: StorageChangeType.UPDATE,
-          key: 'test',
-          value: 123,
-          snapshot: {
-            test: 123
-          }
-        });
+      storage.changes.subscribe(async event => {
+        const snapshot = await event.snapshot;
+
+        expect(event.type).toBe(StorageChangeType.UPDATE);
+        expect(event.key).toBe('test');
+        expect(event.value).toBe(123);
+        expect(snapshot).toEqual({ test: 123 });
 
         done();
       });

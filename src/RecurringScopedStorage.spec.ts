@@ -34,13 +34,14 @@ describe('RecurringRecurringScopedStorage', () => {
     });
 
     it('should trigger a change event', done => {
-      storage.changes.subscribe(event => {
-        expect(event).toEqual({
-          type: StorageChangeType.UPDATE,
-          key: 'test',
-          value: { id: '123' },
-          snapshot: { test: { id: '123' } }
-        });
+      storage.changes.subscribe(async event => {
+        const snapshot = await event.snapshot;
+
+        expect(event.type).toBe(StorageChangeType.UPDATE);
+        expect(event.key).toBe('test');
+        expect(event.value).toEqual({ id: '123' });
+        expect(snapshot).toEqual({ test: { id: '123' } });
+
         done();
       });
       storage.setItem('test', { id: '123' });
@@ -54,13 +55,13 @@ describe('RecurringRecurringScopedStorage', () => {
     });
 
     it('should trigger a change event', done => {
-      storage.changes.subscribe(event => {
-        expect(event).toEqual({
-          type: StorageChangeType.DELETE,
-          key: 'test',
-          value: undefined,
-          snapshot: {}
-        });
+      storage.changes.subscribe(async event => {
+        const snapshot = await event.snapshot;
+
+        expect(event.type).toBe(StorageChangeType.DELETE);
+        expect(event.key).toBe('test');
+        expect(event.value).toBe(undefined);
+        expect(snapshot).toEqual({});
 
         done();
       });
@@ -76,13 +77,13 @@ describe('RecurringRecurringScopedStorage', () => {
     });
 
     it('should trigger a change event', done => {
-      storage.changes.subscribe(event => {
-        expect(event).toEqual({
-          type: StorageChangeType.CLEARED,
-          key: '',
-          value: undefined,
-          snapshot: { test: { id: '' } }
-        });
+      storage.changes.subscribe(async event => {
+        const snapshot = await event.snapshot;
+
+        expect(event.type).toBe(StorageChangeType.CLEARED);
+        expect(event.key).toBe('');
+        expect(event.value).toBe(undefined);
+        expect(snapshot).toEqual({ test: { id: '' } });
 
         done();
       });

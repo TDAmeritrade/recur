@@ -8,7 +8,8 @@ import { Subject, Observable } from 'rxjs';
 import {
   StorageContainer,
   StorageContainerChange,
-  StorageChangeType
+  StorageChangeType,
+  createChangeEvent
 } from './StorageContainer';
 import { RecurringScopedStorage } from './RecurringScopedStorage';
 
@@ -47,24 +48,19 @@ export class RecurringStorage {
       }
 
       container.registerOnChange(async (type, key, value) => {
-        const snapshot = await this.getAll();
-
-        this._changes.next({
-          type,
-          key,
-          value,
-          snapshot
-        });
+        this._changes.next(createChangeEvent(type, key, value, container));
       });
 
       await container.attach();
 
-      this._changes.next({
-        type: StorageChangeType.CONTAINER_CHANGE,
-        key: '',
-        value: undefined,
-        snapshot: await container.getAll()
-      });
+      this._changes.next(
+        createChangeEvent(
+          StorageChangeType.CONTAINER_CHANGE,
+          '',
+          undefined,
+          container
+        )
+      );
 
       resolve(container);
     });
