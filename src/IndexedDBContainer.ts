@@ -101,8 +101,9 @@ export class IndexedDBContainer implements StorageContainer {
     return this.makeRequest(
       store => store.put(JSON.stringify(value), key),
       (event, resolve, reject) => {
-        this.onChange(StorageChangeType.UPDATE, key, value);
-        resolve();
+        this.onChange(StorageChangeType.UPDATE, key, value).then(() =>
+          resolve()
+        );
       },
       'readwrite'
     );
@@ -112,8 +113,9 @@ export class IndexedDBContainer implements StorageContainer {
     return this.makeRequest(
       store => store.delete(key),
       (event, resolve, reject) => {
-        this.onChange(StorageChangeType.DELETE, key, undefined);
-        resolve();
+        this.onChange(StorageChangeType.DELETE, key, undefined).then(() =>
+          resolve()
+        );
       },
       'readwrite'
     );
@@ -123,8 +125,9 @@ export class IndexedDBContainer implements StorageContainer {
     return this.makeRequest(
       store => store.clear(),
       (event, resolve, reject) => {
-        this.onChange(StorageChangeType.CLEARED, ALL_KEYS, undefined);
-        resolve();
+        this.onChange(StorageChangeType.CLEARED, ALL_KEYS, undefined).then(() =>
+          resolve()
+        );
       },
       'readwrite'
     );
