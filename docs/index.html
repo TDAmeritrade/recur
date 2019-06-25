@@ -65,6 +65,35 @@
 		<div class="col-8 col-content">
 			<div class="tsd-panel tsd-typography">
 				<h1 id="recur">recur</h1>
+				<p>Recur is persistent storage library that integrates with different types of storage APIs.</p>
+				<h2 id="install">Install</h2>
+				<p><code>npm install recur</code></p>
+				<h2 id="usage">Usage</h2>
+				<p>Create a recurring storage object and set the storage container you would like to use. Your app interacts with the recurring storage instance. The storage container can be swapped out with a different API without having to change the usage in you application.</p>
+				<p>For example, you can use local storage to store application configuration and then switch to indexedDB without affecting your application.</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { RecurringStorage, LocalStorageContainer } <span class="hljs-keyword">from</span> <span class="hljs-string">'recur'</span>;
+
+<span class="hljs-keyword">const</span> storage = <span class="hljs-keyword">new</span> RecurringStorage();
+<span class="hljs-keyword">const</span> container = <span class="hljs-keyword">new</span> LocalStorageContainer(<span class="hljs-built_in">window</span>.localStorage);
+
+storage.setContainer(container);
+
+<span class="hljs-keyword">await</span> storage.setItem(<span class="hljs-string">'test'</span>, { value: <span class="hljs-number">123</span> });
+
+<span class="hljs-keyword">const</span> value = <span class="hljs-keyword">await</span> storage.getItem(<span class="hljs-string">'test'</span>); <span class="hljs-comment">//=&gt; { value: 123 }</span></code></pre>
+				<p>All APIs are async and will return Promises.</p>
+				<h3 id="scoping-to-a-specific-key">Scoping to a specific key</h3>
+				<p>You can scope a storage down to a specific key of a stored item. Take the following example.</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">await</span> storage.setItem(<span class="hljs-string">'config'</span>, { grids: { refreshAsync: <span class="hljs-literal">true</span> } });
+
+<span class="hljs-comment">// In our grid component we can use just this grid config.</span>
+
+<span class="hljs-keyword">const</span> gridStorage = storage.scope(<span class="hljs-string">'grids'</span>);
+
+<span class="hljs-keyword">await</span> gridStorage.setItem(<span class="hljs-string">'refreshAsync'</span>, <span class="hljs-literal">false</span>);
+<span class="hljs-keyword">await</span> storage.getItem(<span class="hljs-string">'config'</span>); <span class="hljs-comment">//=&gt; { grids: { refreshAsync: false } }</span></code></pre>
+				<h3 id="writing-your-own-containers">Writing your own containers</h3>
+				<p>A couple containers are provided, but you can easily write your own, for example to communicate with a database. Just implement the <code>StorageContainer</code> interface.</p>
 			</div>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">

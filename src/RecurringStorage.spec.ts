@@ -164,4 +164,41 @@ describe('RecurringStorage', () => {
       expect(scoped).toBeInstanceOf(RecurringScopedStorage);
     });
   });
+
+  describe('when copying containers', () => {
+    it('should copy all the items', async () => {
+      const src = new MemoryContainer();
+      const dest = new MemoryContainer();
+
+      await src.setItem('test', 1);
+      await src.setItem('test2', 2);
+      await dest.setItem('test3', 3);
+
+      await RecurringStorage.copy(src, dest);
+
+      expect(await dest.getAll()).toEqual({
+        test: 1,
+        test2: 2,
+        test3: 3
+      });
+    });
+  });
+
+  describe('when cloning containers', () => {
+    it('should copy all the items', async () => {
+      const src = new MemoryContainer();
+      const dest = new MemoryContainer();
+
+      await src.setItem('test', 1);
+      await src.setItem('test2', 2);
+      await dest.setItem('test3', 3);
+
+      await RecurringStorage.clone(src, dest);
+
+      expect(await dest.getAll()).toEqual({
+        test: 1,
+        test2: 2
+      });
+    });
+  });
 });

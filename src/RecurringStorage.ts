@@ -157,4 +157,34 @@ export class RecurringStorage {
   destroy(): void {
     this._changes.complete();
   }
+
+  /**
+   * Copies all items from one container to another.
+   * @param srcContainer
+   * @param destContainer
+   */
+  static async copy(
+    srcContainer: StorageContainer,
+    destContainer: StorageContainer
+  ): Promise<void> {
+    const items = await srcContainer.getAll();
+
+    for (const key of Object.keys(items)) {
+      await destContainer.setItem(key, items[key]);
+    }
+  }
+
+  /**
+   * Copies all items from one container to another, but
+   * clears the destination container before copying.
+   * @param srcContainer
+   * @param destContainer
+   */
+  static async clone(
+    srcContainer: StorageContainer,
+    destContainer: StorageContainer
+  ): Promise<void> {
+    await destContainer.clear();
+    await RecurringStorage.copy(srcContainer, destContainer);
+  }
 }

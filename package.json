@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.es5.json && tsc -p tsconfig.es2015.json",
     "prebuild": "npm run clean",
     "clean": "rm -rf dist",
-    "docs": "typedoc --out docs src",
+    "docs": "typedoc --out docs --ignoreCompilerErrors src",
     "predocs": "npm run clean:docs",
     "clean:docs": "rm -rf docs",
     "release": "standard-version"
