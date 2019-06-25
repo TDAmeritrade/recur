@@ -13,7 +13,7 @@ export class StorageContainerTest {
     let onChange: jest.Mock;
 
     beforeEach(async () => {
-      onChange = jest.fn();
+      onChange = jest.fn(() => Promise.resolve());
       container = this.setup();
       container.registerOnChange(onChange);
       await container.attach();

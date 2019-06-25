@@ -18,6 +18,7 @@
   "devDependencies": {
     "@types/jest": "^24.0.15",
     "@types/lodash": "^4.14.134",
+    "fake-indexeddb": "^2.1.1",
     "jest": "^24.8.0",
     "standard-version": "^6.0.1",
     "ts-jest": "^24.0.2",

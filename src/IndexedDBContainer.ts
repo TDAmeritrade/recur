@@ -99,7 +99,7 @@ export class IndexedDBContainer implements StorageContainer {
 
   setItem<T>(key: string, value: T): Promise<void> {
     return this.makeRequest(
-      store => store.put(JSON.stringify(value), key),
+      store => store.put(value, key),
       (event, resolve, reject) => {
         this.onChange(StorageChangeType.UPDATE, key, value).then(() =>
           resolve()
@@ -125,7 +125,7 @@ export class IndexedDBContainer implements StorageContainer {
     return this.makeRequest(
       store => store.clear(),
       (event, resolve, reject) => {
-        this.onChange(StorageChangeType.CLEARED, ALL_KEYS, undefined).then(() =>
+        this.onChange(StorageChangeType.CLEARED, '', undefined).then(() =>
           resolve()
         );
       },
@@ -146,11 +146,29 @@ export class IndexedDBContainer implements StorageContainer {
   }
 
   getAll<T>(): Promise<T> {
-    return this.makeRequest(
-      store => store.getAll(),
-      (event, resolve, reject) => resolve((event.target as any).result as T),
-      'readonly'
-    );
+    return new Promise(async (resolve, reject) => {
+      const result = {} as { [key: string]: any };
+
+      (await this.db)
+        .transaction(STORE_KEY, 'readonly')
+        .objectStore(STORE_KEY)
+        .openCursor().onsuccess = event => {
+        const cursor = (event.target as any).result as
+          | IDBCursorWithValue
+          | undefined;
+
+        if (cursor) {
+          try {
+            result[cursor.key as string] = cursor.value;
+            cursor.continue();
+          } catch (e) {
+            reject(e);
+          }
+        } else {
+          resolve(result as T);
+        }
+      };
+    });
   }
 
   private makeRequest<T>(
