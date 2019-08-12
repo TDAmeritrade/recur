@@ -1,5 +1,5 @@
 {
-  "name": "recur",
+  "name": "@tdameritade/recur",
   "version": "1.0.0",
   "description": "A consistent storage API for different client storage",
   "main": "dist/es5/index.js",
