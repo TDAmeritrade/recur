@@ -4,7 +4,6 @@ const glob = require('glob');
 const HEADER = [
   '/*',
   ' * Copyright 2019 TD Ameritrade. Released under the terms of the 3-Clause BSD license.  # noqa: E501',
-  ' * recur is a trademark of TD Ameritrade IP Company, Inc. All rights reserved.',
   ' */'
 ];
 
@@ -19,6 +18,8 @@ glob
 
     if (lines[1] !== HEADER[1]) {
       lines = [...HEADER, '', ...lines];
+    } else {
+      lines = [...HEADER, ...lines.slice(4)];
     }
 
     fs.writeFileSync(filePath, lines.join('\n'));
