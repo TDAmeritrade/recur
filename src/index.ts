@@ -7,3 +7,4 @@ export * from './RecurringScopedStorage';
 export * from './StorageContainer';
 export * from './MemoryContainer';
 export * from './LocalStorageContainer';
+export * from './IndexedDBContainer';

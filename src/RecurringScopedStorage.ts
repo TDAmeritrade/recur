@@ -35,7 +35,7 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
   private initialized: Promise<void> = new Promise(
     resolve => (this.resolveInitial = resolve)
   );
-  private initializer: () => S = () => ({} as S);
+  private initializer: (existingState?: S) => S = () => ({} as S);
 
   private _lastSnapshot: S = {} as S;
 
@@ -150,12 +150,12 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
    * into storage under this storage scoped key.
    * @param initializer
    */
-  initialize(initializer: () => S): this {
+  initialize(initializer: (existingState?: S) => S): this {
     this.initializer = initializer;
     this.storage
       .getItem(this.path[0])
       .then(item =>
-        isObject(item) ? item! : this.path.length === 1 ? initializer() : {}
+        this.path.length === 1 ? initializer(item as S | undefined) : {}
       )
       .then(item => {
         const lastKey = last(this.path);
