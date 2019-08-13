@@ -32,10 +32,10 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
   readonly snapshot: Observable<S> = this._snapshot.asObservable();
 
   private resolveInitial: Function = () => {};
-  private initialized: Promise<void> = new Promise(
+  readonly initialized: Promise<void> = new Promise(
     resolve => (this.resolveInitial = resolve)
   );
-  private initializer: (existingState?: S) => S = () => ({} as S);
+  private initializer: () => S = () => ({} as S);
 
   private _lastSnapshot: S = {} as S;
 
@@ -150,12 +150,14 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
    * into storage under this storage scoped key.
    * @param initializer
    */
-  initialize(initializer: (existingState?: S) => S): this {
+  initialize(initializer: () => S): this {
     this.initializer = initializer;
     this.storage
       .getItem(this.path[0])
       .then(item =>
-        this.path.length === 1 ? initializer(item as S | undefined) : {}
+        this.path.length === 1
+          ? this.storage.initializeWith(initializer(), item as S | undefined)
+          : {}
       )
       .then(item => {
         const lastKey = last(this.path);
@@ -163,8 +165,13 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
         this.path
           .slice(1)
           .reduce((res: { [key: string]: any }, pathKey: string) => {
-            if (!isObject(res[pathKey])) {
-              res[pathKey] = pathKey === lastKey ? initializer() : {};
+            if (pathKey === lastKey) {
+              res[pathKey] = this.storage.initializeWith(
+                initializer(),
+                res[pathKey]
+              );
+            } else if (!isObject(res[pathKey])) {
+              res[pathKey] = {};
             }
 
             return res[pathKey];

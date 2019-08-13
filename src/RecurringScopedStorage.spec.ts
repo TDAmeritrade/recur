@@ -3,7 +3,7 @@ import { RecurringStorage } from './RecurringStorage';
 import { MemoryContainer } from './MemoryContainer';
 import { StorageChangeType } from './StorageContainer';
 
-describe('RecurringRecurringScopedStorage', () => {
+describe('RecurringScopedStorage', () => {
   let storage: RecurringScopedStorage<{ test: { id: string } }>;
   let appStorage: RecurringStorage;
 
@@ -108,6 +108,25 @@ describe('RecurringRecurringScopedStorage', () => {
       it('should return false', async () => {
         await storage.removeItem('test');
         expect(await storage.hasItem('test')).toBe(false);
+      });
+    });
+  });
+
+  describe('when merging initial state', () => {
+    it('should use the correct merge strategy', async () => {
+      appStorage.setInitializerStrategy((initial, existing) => ({
+        ...existing,
+        ...initial
+      }));
+
+      await appStorage.setItem('blorg', { resource: { value: 123 } });
+      await appStorage
+        .scope('blorg')
+        .scope('resource')
+        .initialize(() => ({ value: 555 })).initialized;
+
+      expect(await appStorage.getItem('blorg')).toEqual({
+        resource: { value: 555 }
       });
     });
   });

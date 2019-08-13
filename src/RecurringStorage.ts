@@ -20,6 +20,13 @@ import { RecurringScopedStorage } from './RecurringScopedStorage';
 export class RecurringStorage {
   private container!: Promise<StorageContainer>;
   private readonly _changes: Subject<StorageContainerChange> = new Subject();
+  protected initializerStrategy: (
+    toMergeState: any,
+    existingState?: any
+  ) => any = (state, existing) => ({
+    ...state,
+    ...existing
+  });
 
   /**
    * Emits change events from the storage container.
@@ -27,6 +34,27 @@ export class RecurringStorage {
   readonly changes: Observable<
     StorageContainerChange
   > = this._changes.asObservable();
+
+  /**
+   * Sets the merging strategy for the initial states of scoped storages.
+   * @param merger
+   */
+  setInitializerStrategy<S>(
+    merger: (initialState: S, existingState?: S) => S
+  ): this {
+    this.initializerStrategy = merger;
+
+    return this;
+  }
+
+  /**
+   * Initializes a storage state with an initial and existing state.
+   * @param newState
+   * @param existingState
+   */
+  initializeWith<S>(newState: S, existingState?: S): S {
+    return this.initializerStrategy(newState, existingState);
+  }
 
   /**
    * Gets the currently set container.
