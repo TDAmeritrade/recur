@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "lodash": "^4.17.15",
-    "rxjs": "^6.x.x"
+    "rxjs": "^6.x.x",
+    "tslib": "^1.10.0"
   }
 }
