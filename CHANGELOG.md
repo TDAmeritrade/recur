@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.2.0](http://bitbucket.associatesys.local/ngomsw/recur/compare/v1.1.2...v1.2.0) (2019-08-14)
+
+
+### Features
+
+* **storage:** add transaction queueing ([88374af](http://bitbucket.associatesys.local/ngomsw/recur/commit/88374af))
+
 ### [1.1.2](http://bitbucket.associatesys.local/ngomsw/recur/compare/v1.1.1...v1.1.2) (2019-08-14)
 
 
