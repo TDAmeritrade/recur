@@ -11,6 +11,7 @@ import {
   createChangeEvent
 } from './StorageContainer';
 import { RecurringScopedStorage } from './RecurringScopedStorage';
+import { StorageTransactionQueue } from './StorageTransactionQueue';
 
 /**
  * An interface for apps to interact with a storage container. The type
@@ -20,6 +21,7 @@ import { RecurringScopedStorage } from './RecurringScopedStorage';
 export class RecurringStorage {
   private container!: Promise<StorageContainer>;
   private readonly _changes: Subject<StorageContainerChange> = new Subject();
+  protected readonly transactionQueue = new StorageTransactionQueue();
   protected initializerStrategy: (
     toMergeState: any,
     existingState?: any
@@ -57,7 +59,7 @@ export class RecurringStorage {
   }
 
   /**
-   * Gets the currently set container.
+   * Gets the currently,  set container.
    */
   getContainer(): Promise<StorageContainer> {
     return this.container;
@@ -102,7 +104,11 @@ export class RecurringStorage {
    * @returns A promise that resolves to the item value.
    */
   getItem<T>(key: string): Promise<T | null> {
-    return this.container.then(container => container.getItem<T>(key));
+    return this.transactionQueue
+      .queueRead<T | null>(() =>
+        this.container.then(container => container.getItem<T>(key))
+      )
+      .toPromise();
   }
 
   /**
@@ -113,7 +119,11 @@ export class RecurringStorage {
    * @returns A promise that resolves when the set is complete.
    */
   setItem<T>(key: string, value: T): Promise<void> {
-    return this.container.then(container => container.setItem<T>(key, value));
+    return this.transactionQueue
+      .queueWrite(() =>
+        this.container.then(container => container.setItem<T>(key, value))
+      )
+      .toPromise();
   }
 
   /**
@@ -122,7 +132,11 @@ export class RecurringStorage {
    * @returns A promise that resolves when the remove is complete.
    */
   removeItem(key: string): Promise<void> {
-    return this.container.then(container => container.removeItem(key));
+    return this.transactionQueue
+      .queueWrite(() =>
+        this.container.then(container => container.removeItem(key))
+      )
+      .toPromise();
   }
 
   /**
@@ -130,7 +144,9 @@ export class RecurringStorage {
    * @returns A promise that resolves when all items are removed.
    */
   clear(): Promise<void> {
-    return this.container.then(container => container.clear());
+    return this.transactionQueue
+      .queueWrite(() => this.container.then(container => container.clear()))
+      .toPromise();
   }
 
   /**
@@ -139,7 +155,11 @@ export class RecurringStorage {
    * @returns A promise that resolves with all items from the storage container.
    */
   getAll<T = any>(): Promise<{ [key: string]: T }> {
-    return this.container.then(container => container.getAll());
+    return this.transactionQueue
+      .queueRead<{ [key: string]: T }>(() =>
+        this.container.then(container => container.getAll())
+      )
+      .toPromise();
   }
 
   /**
@@ -148,7 +168,11 @@ export class RecurringStorage {
    * @returns A promise that resolves with a boolean.
    */
   hasItem(key: string): Promise<boolean> {
-    return this.container.then(container => container.hasItem(key));
+    return this.transactionQueue
+      .queueRead<boolean>(() =>
+        this.container.then(container => container.hasItem(key))
+      )
+      .toPromise();
   }
 
   /**
@@ -192,12 +216,17 @@ export class RecurringStorage {
    */
   static async copy(
     srcContainer: StorageContainer,
-    destContainer: StorageContainer
+    destContainer: StorageContainer,
+    queue: StorageTransactionQueue
   ): Promise<void> {
-    const items = await srcContainer.getAll();
+    const items = await queue
+      .queueRead(() => srcContainer.getAll())
+      .toPromise();
 
     for (const key of Object.keys(items)) {
-      await destContainer.setItem(key, items[key]);
+      await queue
+        .queueWrite(() => destContainer.setItem(key, items[key]))
+        .toPromise();
     }
   }
 
@@ -209,9 +238,10 @@ export class RecurringStorage {
    */
   static async clone(
     srcContainer: StorageContainer,
-    destContainer: StorageContainer
+    destContainer: StorageContainer,
+    queue: StorageTransactionQueue
   ): Promise<void> {
-    await destContainer.clear();
-    await RecurringStorage.copy(srcContainer, destContainer);
+    await queue.queueWrite(() => destContainer.clear()).toPromise();
+    await RecurringStorage.copy(srcContainer, destContainer, queue);
   }
 }

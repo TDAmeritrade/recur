@@ -2,6 +2,7 @@ import { RecurringStorage } from './RecurringStorage';
 import { MemoryContainer } from './MemoryContainer';
 import { StorageChangeType } from './StorageContainer';
 import { RecurringScopedStorage } from './RecurringScopedStorage';
+import { StorageTransactionQueue } from './StorageTransactionQueue';
 
 describe('RecurringStorage', () => {
   let storage: RecurringStorage;
@@ -174,7 +175,7 @@ describe('RecurringStorage', () => {
       await src.setItem('test2', 2);
       await dest.setItem('test3', 3);
 
-      await RecurringStorage.copy(src, dest);
+      await RecurringStorage.copy(src, dest, new StorageTransactionQueue());
 
       expect(await dest.getAll()).toEqual({
         test: 1,
@@ -193,7 +194,7 @@ describe('RecurringStorage', () => {
       await src.setItem('test2', 2);
       await dest.setItem('test3', 3);
 
-      await RecurringStorage.clone(src, dest);
+      await RecurringStorage.clone(src, dest, new StorageTransactionQueue());
 
       expect(await dest.getAll()).toEqual({
         test: 1,

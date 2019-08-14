@@ -8,3 +8,4 @@ export * from './StorageContainer';
 export * from './MemoryContainer';
 export * from './LocalStorageContainer';
 export * from './IndexedDBContainer';
+export * from './StorageTransactionQueue';
