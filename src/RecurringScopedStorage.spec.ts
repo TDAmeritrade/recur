@@ -130,4 +130,22 @@ describe('RecurringScopedStorage', () => {
       });
     });
   });
+
+  describe('when initializing deeply nested objects', () => {
+    it('should use the correct merge strategy', async () => {
+      await appStorage.setItem('blorg', {
+        resource: { value: 123 },
+        someValue: 555
+      });
+      await appStorage
+        .scope('blorg')
+        .scope('resource')
+        .initialize(() => ({ value: 555 })).initialized;
+
+      expect(await appStorage.getItem('blorg')).toEqual({
+        resource: { value: 123 },
+        someValue: 555
+      });
+    });
+  });
 });

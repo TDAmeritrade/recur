@@ -157,6 +157,8 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
       .then(item =>
         this.path.length === 1
           ? this.storage.initializeWith(initializer(), item as S | undefined)
+          : isObject(item)
+          ? item
           : {}
       )
       .then(item => {
