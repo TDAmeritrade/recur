@@ -9,3 +9,4 @@ export * from './MemoryContainer';
 export * from './LocalStorageContainer';
 export * from './IndexedDBContainer';
 export * from './StorageTransactionQueue';
+export * from './ParentPathInitializedScopedStorage';

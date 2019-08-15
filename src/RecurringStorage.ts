@@ -199,7 +199,23 @@ export class RecurringStorage {
   scope<S extends { [key: string]: any }>(
     key: string
   ): RecurringScopedStorage<S> {
-    return new RecurringScopedStorage([key], this);
+    return this.scopeWith<S, RecurringScopedStorage<any>>(
+      k => new RecurringScopedStorage<S>([k as string], this),
+      key
+    );
+  }
+
+  /**
+   * Creates a storage object that is scoped to a specific key of an entry.
+   * @template S
+   * @param key The key to scope the storage to.
+   * @returns A scoped storage object.
+   */
+  scopeWith<
+    S extends { [key: string]: any },
+    T extends RecurringScopedStorage<S>
+  >(factory: (path: string) => T, key: string): T {
+    return factory(key);
   }
 
   /**

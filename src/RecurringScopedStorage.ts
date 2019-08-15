@@ -11,12 +11,16 @@ import {
   StorageChangeType,
   createChangeEvent
 } from './StorageContainer';
+import { switchMap } from 'rxjs/operators';
 
 /**
  * Scopes down to a key in storage. All calls will interact with that
  * scoped down key.
  */
-export class RecurringScopedStorage<S extends { [key: string]: any }> {
+export class RecurringScopedStorage<
+  S extends { [key: string]: any },
+  R extends { [key: string]: any } = { [key: string]: any }
+> {
   private _changes: Subject<
     StorageContainerChange<S, S[keyof S]>
   > = new Subject();
@@ -35,11 +39,11 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
   readonly initialized: Promise<void> = new Promise(
     resolve => (this.resolveInitial = resolve)
   );
-  private initializer: () => S = () => ({} as S);
+  protected initializer: () => S = () => ({} as S);
 
   private _lastSnapshot: S = {} as S;
 
-  constructor(private path: string[], private storage: RecurringStorage) {
+  constructor(protected path: string[], protected storage: RecurringStorage) {
     this.snapshot.subscribe(snapshot => (this._lastSnapshot = snapshot));
   }
 
@@ -74,6 +78,37 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
           this
         )
       );
+    }
+  }
+
+  /**
+   * Sets multiple items. This will be a single write, but
+   * will generate a change event for each item.
+   * @param values
+   */
+  async setItems(values: Partial<S>): Promise<void> {
+    await this.initialized;
+
+    const item = await this.storage.getItem<S>(this.path[0]!);
+    const keys = Object.keys(values);
+
+    if (item) {
+      for (const key of keys) {
+        set(item, [...this.path.slice(1), key], values[key]);
+      }
+
+      await this.storage.setItem(this.path[0], item);
+
+      for (const key of keys) {
+        this._changes.next(
+          createChangeEvent<S, S[keyof S]>(
+            StorageChangeType.UPDATE,
+            key as string,
+            values[key]!,
+            this
+          )
+        );
+      }
     }
   }
 
@@ -131,16 +166,45 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
       .then(item => has(item!, [...this.path.slice(1), key]));
   }
 
+  getInitialState(): S {
+    return this.initializer();
+  }
+
+  /**
+   * Scopes to a nested storage key.
+   * @param key
+   */
   scope<K extends keyof S>(key: K): RecurringScopedStorage<S[K]> {
-    return new RecurringScopedStorage(
-      [...this.path, key as string],
-      this.storage
+    return this.scopeWith(
+      (path, storage) => new RecurringScopedStorage(path, storage),
+      key
     );
+  }
+
+  /**
+   * Scopes to a nested storage key using the factory to create the scoped storage.
+   * @param factory
+   * @param key
+   */
+  scopeWith<T extends RecurringScopedStorage<S[K]>, K extends keyof S>(
+    factory: (path: string[], storage: RecurringStorage) => T,
+    key: K
+  ): T {
+    return factory([...this.path, key as string], this.storage);
   }
 
   destroy(): void {
     this._changes.complete();
     this._snapshot.complete();
+  }
+
+  /**
+   * Initializes the storage using a custom merge strategy.
+   * @see RecurringScopedStorage#initialize
+   * @param initializer
+   */
+  initializeWithStrategy(initializer: (existing?: S, root?: R) => S): this {
+    return this._initialize(initializer);
   }
 
   /**
@@ -151,12 +215,37 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
    * @param initializer
    */
   initialize(initializer: () => S): this {
+    return this._initialize(root =>
+      this.storage.initializeWith(initializer(), root)
+    );
+  }
+
+  /**
+   * Delegates initialization to a delegate function.
+   * This is used when some other service sets and initializes the state.
+   * The delegate function resolves to delegator function that will produce
+   * the initial state.
+   * @param delegate
+   */
+  delegateInitialization(delegate: () => Promise<[S, () => S]>): this {
+    delegate().then(([state, initializer]) => {
+      this.initializer = initializer;
+      this._snapshot.next(state);
+      this.resolveInitial();
+    });
+
+    this.listenToChanges();
+
+    return this;
+  }
+
+  private _initialize(initializer: (existingState?: S, root?: R) => S): this {
     this.initializer = initializer;
     this.storage
       .getItem(this.path[0])
       .then(item =>
         this.path.length === 1
-          ? this.storage.initializeWith(initializer(), item as S | undefined)
+          ? initializer(item as S)
           : isObject(item)
           ? item
           : {}
@@ -168,10 +257,7 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
           .slice(1)
           .reduce((res: { [key: string]: any }, pathKey: string) => {
             if (pathKey === lastKey) {
-              res[pathKey] = this.storage.initializeWith(
-                initializer(),
-                res[pathKey]
-              );
+              res[pathKey] = initializer(res[pathKey], item as R);
             } else if (!isObject(res[pathKey])) {
               res[pathKey] = {};
             }
@@ -186,13 +272,17 @@ export class RecurringScopedStorage<S extends { [key: string]: any }> {
       .then(snapshot => this._snapshot.next(snapshot))
       .then(() => this.resolveInitial());
 
-    this.initialized.then(() =>
-      this.changes.subscribe(change =>
-        change.snapshot.then(snapshot => this._snapshot.next(snapshot))
-      )
-    );
+    this.listenToChanges();
 
     return this;
+  }
+
+  private listenToChanges(): void {
+    this.initialized.then(() =>
+      this.changes
+        .pipe(switchMap(change => change.snapshot))
+        .subscribe(snapshot => this._snapshot.next(snapshot))
+    );
   }
 
   private _getAll(): Promise<S> {
