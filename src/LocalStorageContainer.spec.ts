@@ -1,5 +1,6 @@
 import { StorageContainerTest } from './testing/StorageContainerTest';
 import { LocalStorageContainer } from './LocalStorageContainer';
+import { JEST_TESTER } from './testing/JestTester';
 
 class LocalStorageMock implements Storage {
   getItem(key: string): string {
@@ -31,6 +32,7 @@ class LocalStorageMock implements Storage {
 
 describe('LocalStorageContainer', () => {
   new StorageContainerTest(
-    () => new LocalStorageContainer(new LocalStorageMock())
+    () => new LocalStorageContainer(new LocalStorageMock()),
+    JEST_TESTER
   ).generate();
 });

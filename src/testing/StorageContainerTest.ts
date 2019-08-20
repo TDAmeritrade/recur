@@ -4,15 +4,26 @@
 
 import { StorageContainer, StorageChangeType } from '../StorageContainer';
 
+export interface StorageContainerTester {
+  assertEquals: (actual: any, expected: any) => void;
+  assertStrictEquals: (actual: any, expected: any) => void;
+  assertCalled: (spy: Function, ...params: any[]) => void;
+  spy: (fn: Function) => Function
+}
+
 export class StorageContainerTest {
-  constructor(private setup: () => StorageContainer) {}
+  constructor(
+    private setup: () => StorageContainer,
+    private tester: StorageContainerTester
+  ) {}
 
   generate(): void {
     let container: StorageContainer;
-    let onChange: jest.Mock;
+    let onChange: any;
 
     beforeEach(async () => {
-      onChange = jest.fn(() => Promise.resolve());
+      onChange = this.tester.spy(() => Promise.resolve());
+      // onChange = jest.fn(() => Promise.resolve());
       container = this.setup();
       container.registerOnChange(onChange);
       await container.attach();
@@ -25,19 +36,19 @@ export class StorageContainerTest {
     describe('when getting an item', () => {
       it('should get the item', async () => {
         await container.setItem('test', { abc: 123 });
-        expect(await container.getItem('test')).toEqual({ abc: 123 });
+        this.tester.assertEquals(await container.getItem('test'), { abc: 123 });
       });
     });
 
     describe('when setting an item', () => {
       it('should set the item as a string', async () => {
         await container.setItem('test', true);
-        expect(await container.getItem('test')).toBe(true);
+        this.tester.assertStrictEquals(await container.getItem('test'), true);
       });
 
       it('should trigger a change event', async () => {
         await container.setItem('test', true);
-        expect(onChange).toHaveBeenCalledWith(
+        this.tester.assertCalled(onChange, 
           StorageChangeType.UPDATE,
           'test',
           true
@@ -48,15 +59,15 @@ export class StorageContainerTest {
     describe('when removing an item', () => {
       it('should remove the item', async () => {
         await container.setItem('test', true);
-        expect(await container.hasItem('test')).toBe(true);
+        this.tester.assertStrictEquals(await container.hasItem('test'), true);
         await container.removeItem('test');
-        expect(await container.hasItem('test')).toBe(false);
+        this.tester.assertStrictEquals(await container.hasItem('test'), false);
       });
 
       it('should trigger a change event', async () => {
         await container.setItem('test', true);
         await container.removeItem('test');
-        expect(onChange).toHaveBeenCalledWith(
+        this.tester.assertCalled(onChange, 
           StorageChangeType.DELETE,
           'test',
           undefined
@@ -68,13 +79,13 @@ export class StorageContainerTest {
       it('should clear all items', async () => {
         await container.setItem('test', true);
         await container.clear();
-        expect(await container.hasItem('test')).toBe(false);
+        this.tester.assertStrictEquals(await container.hasItem('test'), false);
       });
 
       it('should trigger a change event', async () => {
         await container.setItem('test', true);
         await container.clear();
-        expect(onChange).toHaveBeenCalledWith(
+        this.tester.assertCalled(onChange,
           StorageChangeType.CLEARED,
           '',
           undefined
@@ -85,7 +96,7 @@ export class StorageContainerTest {
     describe('when getting all items', () => {
       it('should get all items', async () => {
         await container.setItem('test', {});
-        expect(await container.getAll()).toEqual({ test: {} });
+        this.tester.assertEquals(await container.getAll(), { test: {} });
       });
     });
 
@@ -93,13 +104,13 @@ export class StorageContainerTest {
       describe('when there is an item', () => {
         it('should return true', async () => {
           await container.setItem('test', {});
-          expect(await container.hasItem('test')).toBe(true);
+          this.tester.assertStrictEquals(await container.hasItem('test'), true);
         });
       });
 
       describe('when there is not an item', () => {
         it('should return false', async () => {
-          expect(await container.hasItem('test')).toBe(false);
+          this.tester.assertStrictEquals(await container.hasItem('test'), false);
         });
       });
     });

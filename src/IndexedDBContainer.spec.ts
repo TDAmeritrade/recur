@@ -1,5 +1,6 @@
 import { StorageContainerTest } from './testing/StorageContainerTest';
 import { IndexedDBContainer } from './IndexedDBContainer';
+import {JEST_TESTER} from './testing/JestTester';
 
 require('fake-indexeddb/auto');
 
@@ -13,5 +14,5 @@ describe('IndexedDBContainer', () => {
       databaseName: 'Test',
       databaseVersion: 1
     });
-  }).generate();
+  }, JEST_TESTER).generate();
 });
