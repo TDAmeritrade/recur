@@ -25,13 +25,8 @@ export class ParentPathInitializedScopedStorage<
           map(
             value =>
               [
-                value,
-                () =>
-                  get(
-                    this.parentInitializer.getInitialState(),
-                    this.path.slice(1),
-                    {}
-                  )
+                this.getFromState(value),
+                () => this.getFromState(this.parentInitializer.getInitialState())
               ] as [S, () => S]
           ),
           take(1)
@@ -50,5 +45,13 @@ export class ParentPathInitializedScopedStorage<
         ),
       key
     );
+  }
+
+  private getFromState(initial: any): S {
+    return get(
+      initial,
+      this.path.slice(1),
+      {}
+    )
   }
 }
