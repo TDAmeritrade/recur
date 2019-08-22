@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.3](http://bitbucket.associatesys.local/ngomsw/recur/compare/v1.3.2...v1.3.3) (2019-08-22)
+
+
+### Bug Fixes
+
+* **storage:** use correct initial state for parent initiailized ([4f1a95d](http://bitbucket.associatesys.local/ngomsw/recur/commit/4f1a95d))
+
 ### [1.3.2](http://bitbucket.associatesys.local/ngomsw/recur/compare/v1.3.1...v1.3.2) (2019-08-20)
 
 ### [1.3.1](http://bitbucket.associatesys.local/ngomsw/recur/compare/v1.3.0...v1.3.1) (2019-08-20)
