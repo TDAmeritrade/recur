@@ -23,7 +23,6 @@ export class StorageContainerTest {
 
     beforeEach(async () => {
       onChange = this.tester.spy(() => Promise.resolve());
-      // onChange = jest.fn(() => Promise.resolve());
       container = this.setup();
       container.registerOnChange(onChange);
       await container.attach();

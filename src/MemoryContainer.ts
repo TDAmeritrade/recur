@@ -28,7 +28,7 @@ export class MemoryContainer implements StorageContainer {
     return Promise.resolve();
   }
 
-  async getItem<T>(key: string): Promise<T | null> {
+  async getItem<T>(key: string): Promise<T> {
     return this.storage[key];
   }
 

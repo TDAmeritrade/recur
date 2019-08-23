@@ -2,7 +2,21 @@
  * Copyright 2019 TD Ameritrade. Released under the terms of the 3-Clause BSD license.  # noqa: E501
  */
 
-import { Subject, Observable } from 'rxjs';
+import { has, isObject } from 'lodash';
+import {
+  Subject,
+  Observable,
+  ConnectableObservable,
+  combineLatest
+} from 'rxjs';
+import {
+  switchMap,
+  publishReplay,
+  filter,
+  map,
+  mapTo,
+  shareReplay
+} from 'rxjs/operators';
 
 import {
   StorageContainer,
@@ -12,16 +26,24 @@ import {
 } from './StorageContainer';
 import { RecurringScopedStorage } from './RecurringScopedStorage';
 import { StorageTransactionQueue } from './StorageTransactionQueue';
+import { StorageApi } from './StorageApi';
+import { ScopedStorageAdapter } from './ScopedStorageAdapter';
 
 /**
  * An interface for apps to interact with a storage container. The type
  * of storage that is written to is abstracted into containers that can
  * be set based on configuration or some application state.
  */
-export class RecurringStorage {
+export class RecurringStorage<
+  S extends { [key: string]: any } = { [key: string]: any }
+> implements StorageApi<S> {
   private container!: Promise<StorageContainer>;
   private readonly _changes: Subject<StorageContainerChange> = new Subject();
+  private readonly _initializersChanged: Subject<
+    [keyof S, () => S[keyof S]]
+  > = new Subject();
   protected readonly transactionQueue = new StorageTransactionQueue();
+  protected readonly stateInitializers = new Map<keyof S, () => S[keyof S]>();
   protected initializerStrategy: (
     toMergeState: any,
     existingState?: any
@@ -36,6 +58,56 @@ export class RecurringStorage {
   readonly changes: Observable<
     StorageContainerChange
   > = this._changes.asObservable();
+
+  /**
+   * Emits the current state on subscription.
+   */
+  readonly snapshot: Observable<S> = this._changes.asObservable().pipe(
+    switchMap(() => this.getAll()),
+    publishReplay(1)
+  );
+
+  constructor() {
+    (this.snapshot as ConnectableObservable<S>).connect();
+
+    combineLatest(
+      this.snapshot,
+      this._initializersChanged.asObservable().pipe(
+        mapTo(this.stateInitializers),
+        shareReplay(1)
+      )
+    ).subscribe(([snapshot, initializers]) => {
+      for (const [key, initializer] of initializers.entries()) {
+        if (!has(snapshot, key) || !isObject(snapshot[key])) {
+          this.setItem(key, initializer());
+        }
+      }
+    });
+  }
+
+  async registerStateInitializer<K extends keyof S>(
+    key: K,
+    initializer: () => S[K]
+  ): Promise<void> {
+    this.stateInitializers.set(key, initializer);
+
+    await this.setItem(
+      key,
+      this.initializeWith(initializer(), await this.getItem(key))
+    );
+
+    this._initializersChanged.next([key, initializer]);
+  }
+
+  getStateInitializerOrThrow<K extends keyof S>(key: K): () => S[K] {
+    const initializer = this.stateInitializers.get(key);
+
+    if (!initializer) {
+      throw new Error(`No state initializer for key ${key}`);
+    }
+
+    return initializer as () => S[K];
+  }
 
   /**
    * Sets the merging strategy for the initial states of scoped storages.
@@ -77,7 +149,9 @@ export class RecurringStorage {
       }
 
       container.registerOnChange(async (type, key, value) => {
-        this._changes.next(createChangeEvent(type, key, value, container));
+        this._changes.next(
+          createChangeEvent(type, key, value, container as any)
+        );
       });
 
       await container.attach();
@@ -87,7 +161,7 @@ export class RecurringStorage {
           StorageChangeType.CONTAINER_CHANGE,
           '',
           undefined,
-          container
+          container as any
         )
       );
 
@@ -103,10 +177,10 @@ export class RecurringStorage {
    * @param key The storage item to get at the provided key.
    * @returns A promise that resolves to the item value.
    */
-  getItem<T>(key: string): Promise<T | null> {
+  getItem<K extends keyof S>(key: K): Promise<S[K]> {
     return this.transactionQueue
-      .queueRead<T | null>(() =>
-        this.container.then(container => container.getItem<T>(key))
+      .queueRead<S[K]>(() =>
+        this.container.then(container => container.getItem<S[K]>(key as string))
       )
       .toPromise();
   }
@@ -118,10 +192,15 @@ export class RecurringStorage {
    * @param value The value to set.
    * @returns A promise that resolves when the set is complete.
    */
-  setItem<T>(key: string, value: T): Promise<void> {
+  setItem<K extends keyof S>(
+    key: K,
+    value: S[K]
+  ): Promise<void> {
     return this.transactionQueue
       .queueWrite(() =>
-        this.container.then(container => container.setItem<T>(key, value))
+        this.container.then(container =>
+          container.setItem<S[K]>(key as string, value)
+        )
       )
       .toPromise();
   }
@@ -131,7 +210,9 @@ export class RecurringStorage {
    * @param key The key to remove from storage.
    * @returns A promise that resolves when the remove is complete.
    */
-  removeItem(key: string): Promise<void> {
+  removeItem(
+    key: string
+  ): Promise<void> {
     return this.transactionQueue
       .queueWrite(() =>
         this.container.then(container => container.removeItem(key))
@@ -145,7 +226,9 @@ export class RecurringStorage {
    */
   clear(): Promise<void> {
     return this.transactionQueue
-      .queueWrite(() => this.container.then(container => container.clear()))
+      .queueWrite(() =>
+        this.container.then(container => container.clear())
+      )
       .toPromise();
   }
 
@@ -154,11 +237,9 @@ export class RecurringStorage {
    * @template T
    * @returns A promise that resolves with all items from the storage container.
    */
-  getAll<T = any>(): Promise<{ [key: string]: T }> {
+  getAll(): Promise<S> {
     return this.transactionQueue
-      .queueRead<{ [key: string]: T }>(() =>
-        this.container.then(container => container.getAll())
-      )
+      .queueRead<S>(() => this.container.then(container => container.getAll()))
       .toPromise();
   }
 
@@ -173,6 +254,24 @@ export class RecurringStorage {
         this.container.then(container => container.hasItem(key))
       )
       .toPromise();
+  }
+
+  /**
+   * Sets multiple items in storage.
+   * @param items Items to put in storage.
+   */
+  async setItems(
+    items: Partial<S>
+  ): Promise<void> {
+    for (const key of Object.keys(items)) {
+      await this.transactionQueue
+        .queueWrite(() =>
+          this.container.then(container =>
+            container.setItem(key, items[key])
+          )
+        )
+        .toPromise();
+    }
   }
 
   /**
@@ -196,12 +295,14 @@ export class RecurringStorage {
    * @param key The key to scope the storage to.
    * @returns A scoped storage object.
    */
-  scope<S extends { [key: string]: any }>(
-    key: string
-  ): RecurringScopedStorage<S> {
-    return this.scopeWith<S, RecurringScopedStorage<any>>(
-      k => new RecurringScopedStorage<S>([k as string], this),
-      key
+  scope<K extends keyof S>(
+    key: K,
+    stateInitializer: () => S[K]
+  ): RecurringScopedStorage<S, K> {
+    return this.scopeWith<K, RecurringScopedStorage<S, K>>(
+      (_key, adapter) => new RecurringScopedStorage<S, K>(key, adapter),
+      key,
+      stateInitializer
     );
   }
 
@@ -211,11 +312,36 @@ export class RecurringStorage {
    * @param key The key to scope the storage to.
    * @returns A scoped storage object.
    */
-  scopeWith<
-    S extends { [key: string]: any },
-    T extends RecurringScopedStorage<S>
-  >(factory: (path: string) => T, key: string): T {
-    return factory(key);
+  scopeWith<K extends keyof S, T extends RecurringScopedStorage<S, K>>(
+    factory: (key: K, adapter: ScopedStorageAdapter<S[K]>) => T,
+    key: K,
+    stateInitializer?: () => S[K]
+  ): T {
+    let registerPromise = Promise.resolve();
+
+    if (stateInitializer) {
+      registerPromise = this.registerStateInitializer(key, stateInitializer);
+    }
+
+    return factory(
+      key,
+      new ScopedStorageAdapter<S[K]>(
+        async (adapter, context) => {
+          context.setGetter(() => this.getItem(key));
+          context.setSetter(value => this.setItem(key, value));
+          context.setSnapshotSource(
+            this.snapshot.pipe(map(value => value[key]))
+          );
+
+          adapter.add(
+            combineLatest(this.snapshot, registerPromise).subscribe(([value]) =>
+              context.setInitialized(has(value, key) && isObject(value[key]))
+            )
+          );
+        },
+        () => this.getStateInitializerOrThrow(key)()
+      )
+    );
   }
 
   /**

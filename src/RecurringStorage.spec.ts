@@ -160,7 +160,7 @@ describe('RecurringStorage', () => {
 
   describe('when scoping storage', () => {
     it('should return a scoped storage', () => {
-      const scoped = storage.scope('test');
+      const scoped = storage.scope('test', () => ({}));
 
       expect(scoped).toBeInstanceOf(RecurringScopedStorage);
     });

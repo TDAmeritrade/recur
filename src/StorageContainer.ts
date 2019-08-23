@@ -1,13 +1,9 @@
 /*
  * Copyright 2019 TD Ameritrade. Released under the terms of the 3-Clause BSD license.  # noqa: E501
- */
-
-import { RecurringScopedStorage } from './RecurringScopedStorage';
-
-/*
- * Copyright 2019 TD Ameritrade. Released under the terms of the 3-Clause BSD license.  # noqa: E501
  * recur is a trademark of TD Ameritrade IP Company, Inc. All rights reserved.
  */
+
+import { StorageApi } from './StorageApi';
 
 export const ALL_KEYS = 'ALL_KEYS';
 
@@ -22,7 +18,7 @@ export function createChangeEvent<S = any, V = any>(
   type: StorageChangeType,
   key: string,
   value: V,
-  container: StorageContainer | RecurringScopedStorage<any>
+  container: StorageApi<S>
 ): StorageContainerChange<S, V> {
   return {
     type,
@@ -72,7 +68,7 @@ export type OnChangeHandler = (
  * A container for a persisted storage container.
  * @interface StorageContainer
  */
-export interface StorageContainer {
+export interface StorageContainer<S = any> {
   /**
    * Registers an on change handler that signals a change was made to storage.
    * @param onChange
@@ -90,7 +86,7 @@ export interface StorageContainer {
    * Gets an item from storage.
    * @param key
    */
-  getItem<T>(key: string): Promise<T | null>;
+  getItem<T>(key: string): Promise<T>;
   /**
    * Sets an item in storage.
    * @param key
@@ -109,7 +105,7 @@ export interface StorageContainer {
   /**
    * Gets all items from storage.
    */
-  getAll<T = any>(): Promise<{ [key: string]: T }>;
+  getAll(): Promise<S>;
   /**
    * Determines whether an item exists in storage.
    * @param key

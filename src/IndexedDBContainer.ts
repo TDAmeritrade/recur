@@ -88,7 +88,7 @@ export class IndexedDBContainer implements StorageContainer {
     }
   }
 
-  getItem<T>(key: string): Promise<T | null> {
+  getItem<T>(key: string): Promise<T> {
     return this.makeRequest(
       store => store.get(key),
       (event, resolve, reject) => resolve((event.target as any).result),

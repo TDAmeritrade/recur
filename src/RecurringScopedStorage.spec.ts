@@ -3,21 +3,32 @@ import { RecurringStorage } from './RecurringStorage';
 import { MemoryContainer } from './MemoryContainer';
 import { StorageChangeType } from './StorageContainer';
 
+type State = {
+  scoped: {
+    test: {
+      id: string;
+    };
+  };
+  blorg: {
+    resource: {
+      value: number;
+      someValue: number;
+    };
+  };
+}
+
 describe('RecurringScopedStorage', () => {
-  let storage: RecurringScopedStorage<{ test: { id: string } }>;
-  let appStorage: RecurringStorage;
+  let storage: RecurringScopedStorage<State, 'scoped'>;
+  let appStorage: RecurringStorage<State>;
 
   beforeEach(async () => {
-    appStorage = new RecurringStorage();
+    appStorage = new RecurringStorage<State>();
     appStorage.setContainer(new MemoryContainer());
-    storage = new RecurringScopedStorage<{ test: { id: string } }>(
-      ['value'],
-      appStorage
-    ).initialize(() => ({
-      test: { id: '' }
+    storage = appStorage.scope('scoped', () => ({
+      test: { id: 'id' }
     }));
 
-    await appStorage.getContainer();
+    await storage.initialized;
   });
 
   describe('when getting an item', () => {
@@ -73,7 +84,7 @@ describe('RecurringScopedStorage', () => {
     it('should clear all items back to the initializer values', async () => {
       await storage.setItem('test', { id: '123' });
       await storage.clear();
-      expect(await storage.getItem('test')).toEqual({ id: '' });
+      expect(await storage.getItem('test')).toEqual({ id: 'id' });
     });
 
     it('should trigger a change event', done => {
@@ -83,7 +94,7 @@ describe('RecurringScopedStorage', () => {
         expect(event.type).toBe(StorageChangeType.CLEARED);
         expect(event.key).toBe('');
         expect(event.value).toBe(undefined);
-        expect(snapshot).toEqual({ test: { id: '' } });
+        expect(snapshot).toEqual({ test: { id: 'id' } });
 
         done();
       });
@@ -93,7 +104,7 @@ describe('RecurringScopedStorage', () => {
 
   describe('when getting all items', () => {
     it('should get all items', async () => {
-      expect(await storage.getAll()).toEqual({ test: { id: '' } });
+      expect(await storage.getAll()).toEqual({ test: { id: 'id' } });
     });
   });
 
@@ -119,14 +130,16 @@ describe('RecurringScopedStorage', () => {
         ...initial
       }));
 
-      await appStorage.setItem('blorg', { resource: { value: 123 } });
+      await appStorage.setItem('blorg', { resource: { value: 123, someValue: 999 } });
       await appStorage
-        .scope('blorg')
+        .scope('blorg', () => ({
+          resource: { value: 555, someValue: 654 }
+        }))
         .scope('resource')
-        .initialize(() => ({ value: 555 })).initialized;
+        .initialized;
 
       expect(await appStorage.getItem('blorg')).toEqual({
-        resource: { value: 555 }
+        resource: { value: 555, someValue: 654 },
       });
     });
   });
@@ -134,17 +147,17 @@ describe('RecurringScopedStorage', () => {
   describe('when initializing deeply nested objects', () => {
     it('should use the correct merge strategy', async () => {
       await appStorage.setItem('blorg', {
-        resource: { value: 123 },
-        someValue: 555
+        resource: { value: 123, someValue: 555 },
       });
       await appStorage
-        .scope('blorg')
+        .scope('blorg', () => ({
+          resource: { value: 666, someValue: 888 },
+        }))
         .scope('resource')
-        .initialize(() => ({ value: 555 })).initialized;
+        .initialized;
 
       expect(await appStorage.getItem('blorg')).toEqual({
-        resource: { value: 123 },
-        someValue: 555
+        resource: { value: 123, someValue: 555 },
       });
     });
   });

@@ -30,8 +30,8 @@ export class LocalStorageContainer implements StorageContainer {
     return Promise.resolve();
   }
 
-  getItem<T>(key: string): Promise<T | null> {
-    return this.attempt<T | null>(() => {
+  getItem<T>(key: string): Promise<T> {
+    return this.attempt<T>(() => {
       let item = this.localStorage.getItem(this.getLookupKey(key));
 
       try {
