@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.0.1](http://bitbucket.associatesys.local/ngomsw/recur/compare/v2.0.0...v2.0.1) (2019-08-28)
+
+
+### Bug Fixes
+
+* **storage:** fix race conditions with transactions ([2946291](http://bitbucket.associatesys.local/ngomsw/recur/commit/2946291))
+
 ## [2.0.0](http://bitbucket.associatesys.local/ngomsw/recur/compare/v1.3.3...v2.0.0) (2019-08-23)
 
 ### [1.3.3](http://bitbucket.associatesys.local/ngomsw/recur/compare/v1.3.2...v1.3.3) (2019-08-22)
