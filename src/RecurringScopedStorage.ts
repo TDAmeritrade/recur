@@ -4,7 +4,7 @@
 
 import { set, unset, has, get, isObject } from 'lodash';
 import { Subject, Observable, Subscription } from 'rxjs';
-import { map, filter, mapTo, take } from 'rxjs/operators';
+import { map, filter } from 'rxjs/operators';
 
 import {
   StorageContainerChange,
@@ -54,39 +54,15 @@ export class RecurringScopedStorage<
   }
 
   get initialized(): Promise<void> {
-    return this.adapter.initialized
-      .pipe(
-        filter<boolean>(Boolean),
-        take(1),
-        mapTo(undefined)
-      )
-      .toPromise();
+    return this.adapter.whenInitialized();
   }
 
-  async getItem<H extends keyof R[K]>(key: H): Promise<R[K][H]> {
-    await this.initialized;
-
-    return get(await this.adapter.getItem(), key);
+  getItem<H extends keyof R[K]>(key: H): Promise<R[K][H]> {
+    return this.adapter.readTransaction(() => this._getItem(key));
   }
 
-  async setItem<H extends keyof R[K]>(key: H, value: R[K][H]): Promise<void> {
-    await this.initialized;
-
-    const item = await this.adapter.getItem();
-
-    if (item) {
-      set(item, key, value);
-      await this.adapter.setItem(item);
-
-      this._changes.next(
-        createChangeEvent<R[K], R[K][H]>(
-          StorageChangeType.UPDATE,
-          key as string,
-          value,
-          this
-        )
-      );
-    }
+  setItem<H extends keyof R[K]>(key: H, value: R[K][H]): Promise<void> {
+    return this.adapter.writeTransaction(() => this._setItem(key, value));
   }
 
   /**
@@ -94,72 +70,71 @@ export class RecurringScopedStorage<
    * will generate a change event for each item.
    * @param values
    */
-  async setItems(values: Partial<R[K]>): Promise<void> {
-    await this.initialized;
+  setItems(values: Partial<R[K]>): Promise<void> {
+    return this.adapter.writeTransaction(async () => {
+      const item = await this.adapter.getItem();
+      const keys = Object.keys(values);
 
-    const item = await this.adapter.getItem();
-    const keys = Object.keys(values);
+      if (item) {
+        for (const key of keys) {
+          set(item, key, values[key]);
+        }
 
-    if (item) {
-      for (const key of keys) {
-        set(item, key, values[key]);
+        await this.adapter.setItem(item);
+
+        for (const key of keys) {
+          this._changes.next(
+            createChangeEvent<R[K], R[K][keyof R[K]]>(
+              StorageChangeType.UPDATE,
+              key as string,
+              values[key]!,
+              this
+            )
+          );
+        }
       }
+    });
+  }
 
-      await this.adapter.setItem(item);
+  removeItem<H extends keyof R[K]>(key: H): Promise<void> {
+    return this.adapter.writeTransaction(async () => {
+      const item = await this.adapter.getItem();
 
-      for (const key of keys) {
+      if (item) {
+        unset(item, key);
+
+        await this.adapter.setItem(item);
+
         this._changes.next(
-          createChangeEvent<R[K], R[K][keyof R[K]]>(
-            StorageChangeType.UPDATE,
+          createChangeEvent(
+            StorageChangeType.DELETE,
             key as string,
-            values[key]!,
+            undefined!,
             this
           )
         );
       }
-    }
+    });
   }
 
-  async removeItem<H extends keyof R[K]>(key: H): Promise<void> {
-    await this.initialized;
-
-    const item = await this.adapter.getItem();
-
-    if (item) {
-      unset(item, key);
-
-      await this.adapter.setItem(item);
+  clear(): Promise<void> {
+    return this.adapter.writeTransaction(async () => {
+      await this.adapter.setItem(this.adapter.getInitialState());
 
       this._changes.next(
-        createChangeEvent(
-          StorageChangeType.DELETE,
-          key as string,
-          undefined!,
-          this
-        )
+        createChangeEvent(StorageChangeType.CLEARED, '', undefined!, this)
       );
-    }
+    });
   }
 
-  async clear(): Promise<void> {
-    await this.initialized;
-    await this.adapter.setItem(this.adapter.getInitialState());
+  getAll(): Promise<R[K]> {
+    return this.adapter.readTransaction(() => this.adapter.getItem());
+  }
 
-    this._changes.next(
-      createChangeEvent(StorageChangeType.CLEARED, '', undefined!, this)
+  hasItem<H extends keyof R[K]>(key: H): Promise<boolean> {
+    return this.adapter.readTransaction(async () =>
+      has(await this.adapter.getItem(), key)
     );
-  }
-
-  async getAll(): Promise<R[K]> {
-    await this.initialized;
-
-    return await this.adapter.getItem();
-  }
-
-  async hasItem<H extends keyof R[K]>(key: H): Promise<boolean> {
-    await this.initialized;
-
-    return has(await this.adapter.getItem(), key);
   }
 
   /**
@@ -186,10 +161,16 @@ export class RecurringScopedStorage<
       key,
       new ScopedStorageAdapter(
         (adapter, context) => {
-          context.setGetter(() => this.getItem(key));
-          context.setSetter(value => this.setItem(key, value));
+          context.setGetter(() => this._getItem(key));
+          context.setSetter(value => this._setItem(key, value));
           context.setSnapshotSource(
-            this.snapshot.pipe(map(snapshot => snapshot[key]))
+            this.snapshot.pipe(
+              filter<R[K]>(isObject),
+              map(snapshot => snapshot[key])
+            )
+          );
+          context.setTransaction((type, fn) =>
+            this.adapter.transaction(type, fn)
           );
           adapter.add(
             this.snapshot.subscribe(snapshot =>
@@ -202,5 +183,30 @@ export class RecurringScopedStorage<
         () => this.adapter.getInitialState()[key]
       )
     );
+  }
+
+  private async _setItem<H extends keyof R[K]>(
+    key: H,
+    value: R[K][H]
+  ): Promise<void> {
+    const item = await this.adapter.getItem();
+
+    if (item) {
+      set(item, key, value);
+      await this.adapter.setItem(item);
+
+      this._changes.next(
+        createChangeEvent<R[K], R[K][H]>(
+          StorageChangeType.UPDATE,
+          key as string,
+          value,
+          this
+        )
+      );
+    }
+  }
+
+  private async _getItem<H extends keyof R[K]>(key: H): Promise<R[K][H]> {
+    return get(await this.adapter.getItem(), key);
   }
 }

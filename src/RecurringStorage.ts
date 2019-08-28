@@ -2,7 +2,7 @@
  * Copyright 2019 TD Ameritrade. Released under the terms of the 3-Clause BSD license.  # noqa: E501
  */
 
-import { has, isObject } from 'lodash';
+import { has, isObject, uniqueId } from 'lodash';
 import {
   Subject,
   Observable,
@@ -12,10 +12,10 @@ import {
 import {
   switchMap,
   publishReplay,
-  filter,
   map,
   mapTo,
-  shareReplay
+  shareReplay,
+  filter
 } from 'rxjs/operators';
 
 import {
@@ -89,14 +89,23 @@ export class RecurringStorage<
     key: K,
     initializer: () => S[K]
   ): Promise<void> {
-    this.stateInitializers.set(key, initializer);
+    return this.transactionQueue
+      .queueWrite(async () => {
+        this.stateInitializers.set(key, initializer);
 
-    await this.setItem(
-      key,
-      this.initializeWith(initializer(), await this.getItem(key))
-    );
+        const container = await this.container;
 
-    this._initializersChanged.next([key, initializer]);
+        await container.setItem(
+          key as string,
+          this.initializeWith(
+            initializer(),
+            await container.getItem(key as string)
+          )
+        );
+
+        this._initializersChanged.next([key, initializer]);
+      })
+      .toPromise();
   }
 
   getStateInitializerOrThrow<K extends keyof S>(key: K): () => S[K] {
@@ -192,10 +201,7 @@ export class RecurringStorage<
    * @param value The value to set.
    * @returns A promise that resolves when the set is complete.
    */
-  setItem<K extends keyof S>(
-    key: K,
-    value: S[K]
-  ): Promise<void> {
+  setItem<K extends keyof S>(key: K, value: S[K]): Promise<void> {
     return this.transactionQueue
       .queueWrite(() =>
         this.container.then(container =>
@@ -210,9 +216,7 @@ export class RecurringStorage<
    * @param key The key to remove from storage.
    * @returns A promise that resolves when the remove is complete.
    */
-  removeItem(
-    key: string
-  ): Promise<void> {
+  removeItem(key: string): Promise<void> {
     return this.transactionQueue
       .queueWrite(() =>
         this.container.then(container => container.removeItem(key))
@@ -226,9 +230,7 @@ export class RecurringStorage<
    */
   clear(): Promise<void> {
     return this.transactionQueue
-      .queueWrite(() =>
-        this.container.then(container => container.clear())
-      )
+      .queueWrite(() => this.container.then(container => container.clear()))
       .toPromise();
   }
 
@@ -260,15 +262,11 @@ export class RecurringStorage<
    * Sets multiple items in storage.
    * @param items Items to put in storage.
    */
-  async setItems(
-    items: Partial<S>
-  ): Promise<void> {
+  async setItems(items: Partial<S>): Promise<void> {
     for (const key of Object.keys(items)) {
       await this.transactionQueue
         .queueWrite(() =>
-          this.container.then(container =>
-            container.setItem(key, items[key])
-          )
+          this.container.then(container => container.setItem(key, items[key]))
         )
         .toPromise();
     }
@@ -327,10 +325,28 @@ export class RecurringStorage<
       key,
       new ScopedStorageAdapter<S[K]>(
         async (adapter, context) => {
-          context.setGetter(() => this.getItem(key));
-          context.setSetter(value => this.setItem(key, value));
+          context.setGetter(() =>
+            this.container.then(container => container.getItem(key as string))
+          );
+          context.setSetter(value =>
+            this.container.then(container =>
+              container.setItem(key as string, value)
+            )
+          );
           context.setSnapshotSource(
-            this.snapshot.pipe(map(value => value[key]))
+            this.snapshot.pipe(
+              filter<S>(isObject),
+              map(value => value[key])
+            )
+          );
+          context.setTransaction((type, fn) =>
+            this.transactionQueue
+              .queue({
+                type,
+                id: uniqueId(),
+                work: fn
+              })
+              .toPromise()
           );
 
           adapter.add(
