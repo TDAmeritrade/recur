@@ -5,8 +5,7 @@
 import {
   StorageContainer,
   OnChangeHandler,
-  StorageChangeType,
-  ALL_KEYS
+  StorageChangeType
 } from './StorageContainer';
 
 export interface IndexedDBContainerOptions {
