@@ -1,6 +1,6 @@
 {
   "name": "@tdameritrade/recur",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "A consistent storage API for different client storage",
   "main": "dist/es5/index.js",
   "scripts": {
