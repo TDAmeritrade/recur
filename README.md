@@ -4,7 +4,7 @@ Recur is persistent storage library that integrates with different types of stor
 
 ## Install
 
-`npm install recur`
+`npm install @tdameritrade/recur`
 
 ## Usage
 
@@ -13,7 +13,7 @@ Create a recurring storage object and set the storage container you would like t
 For example, you can use local storage to store application configuration and then switch to indexedDB without affecting your application.
 
 ```typescript
-import { RecurringStorage, LocalStorageContainer } from 'recur';
+import { RecurringStorage, LocalStorageContainer } from '@tdameritrade/recur';
 
 const storage = new RecurringStorage();
 const container = new LocalStorageContainer(window.localStorage);
@@ -45,3 +45,7 @@ await storage.getItem('config'); //=> { grids: { refreshAsync: false } }
 ### Writing your own containers
 
 A couple containers are provided, but you can easily write your own, for example to communicate with a database. Just implement the `StorageContainer` interface.
+
+### Access control 
+
+Recur has a built in access control mechanism for preventing reads/writes that would result in stale or overwritten data. You can find out more about this by referencing the `StorageTransationQueue`.
