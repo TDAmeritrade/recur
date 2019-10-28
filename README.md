@@ -1,4 +1,6 @@
 # recur
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FTDAmeritrade%2Frecur.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2FTDAmeritrade%2Frecur?ref=badge_shield)
+
 
 Recur is persistent storage library that integrates with different types of storage APIs.
 
@@ -49,3 +51,7 @@ A couple containers are provided, but you can easily write your own, for example
 ### Access control 
 
 Recur has a built in access control mechanism for preventing reads/writes that would result in stale or overwritten data. You can find out more about this by referencing the `StorageTransationQueue`.
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FTDAmeritrade%2Frecur.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2FTDAmeritrade%2Frecur?ref=badge_large)
