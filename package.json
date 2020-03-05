@@ -27,6 +27,7 @@
   },
   "repository": "https://github.com/TDAmeritrade/recur.git",
   "license": "BSD",
+  "es2015": "dist/es2015/index.js",
   "devDependencies": {
     "@types/jest": "^24.0.15",
     "@types/lodash": "^4.14.134",
