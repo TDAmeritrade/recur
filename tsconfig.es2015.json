@@ -2,6 +2,7 @@
   "extends": "./tsconfig.es5.json",
   "compilerOptions": {
     "target": "es2015",
+    "module": "ESNext",
     "outDir": "dist/es2015"
   }
 }
